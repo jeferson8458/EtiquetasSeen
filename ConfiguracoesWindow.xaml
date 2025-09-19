@@ -1,0 +1,35 @@
+﻿<Window x:Class="ImpressoraEtiquetas.ConfiguracoesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Configurações da Impressora" Height="400" Width="400" WindowStartupLocation="CenterOwner">
+    <Grid Margin="15">
+        <StackPanel>
+            <TextBlock Text="Configurações para:" FontWeight="Bold"/>
+            <TextBlock x:Name="TipoLabel" Text="Sócios" FontSize="16" Margin="0,0,0,20"/>
+
+            <Label Content="Modelo da Impressora:"/>
+            <ComboBox x:Name="ModeloImpressoraCombo" SelectedIndex="0">
+                <ComboBoxItem Content="L42PRO"/>
+                <ComboBoxItem Content="L42"/>
+                <ComboBoxItem Content="TT042-50"/>
+            </ComboBox>
+
+            <Label Content="Calor (0-20):"/>
+            <Slider x:Name="CalorSlider" Minimum="0" Maximum="20" IsSnapToTickEnabled="True" TickFrequency="1"/>
+
+            <Label Content="Velocidade (0-11):"/>
+            <Slider x:Name="VelocidadeSlider" Minimum="0" Maximum="11" IsSnapToTickEnabled="True" TickFrequency="1"/>
+
+            <Label Content="Margem Superior (Offset Linha):"/>
+            <TextBox x:Name="OffsetLinhaTxt"/>
+
+            <Label Content="Margem Esquerda (Offset Coluna):"/>
+            <TextBox x:Name="OffsetColunaTxt"/>
+
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+                <Button Content="Salvar" Width="100" Margin="10,0" Click="Salvar_Click"/>
+                <Button Content="Cancelar" Width="100" IsCancel="True"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

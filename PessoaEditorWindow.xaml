@@ -1,0 +1,44 @@
+﻿<Window x:Class="ImpressoraEtiquetas.PessoaEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Editor de Pessoa" Height="580" Width="350"
+        WindowStartupLocation="CenterOwner" SizeToContent="Height">
+    <StackPanel Margin="15">
+        <Label Content="Nome Completo:"/>
+        <TextBox x:Name="NomeCompletoTextBox"/>
+
+        <Label Content="Matrícula:" Margin="0,10,0,0"/>
+        <TextBox x:Name="MatriculaTextBox"/>
+
+        <Label Content="Função:" Margin="0,10,0,0"/>
+        <TextBox x:Name="FuncaoTextBox"/>
+
+        <Label Content="Empresa:" Margin="0,10,0,0"/>
+        <TextBox x:Name="EmpresaTextBox"/>
+
+        <Label Content="CTPS:" Margin="0,10,0,0"/>
+        <TextBox x:Name="CtpsTextBox"/>
+
+        <Label Content="Nº de Dependentes:" Margin="0,10,0,0"/>
+        <TextBox x:Name="NumeroDependentesTextBox"/>
+        <Label Content="CPF:" Margin="0,10,0,0"/>
+        <TextBox x:Name="CpfTextBox"/>
+
+        <Label Content="Cidade:" Margin="0,10,0,0"/>
+        <TextBox x:Name="CidadeTextBox"/>
+
+        <Label Content="Telefone:" Margin="0,10,0,0"/>
+        <TextBox x:Name="TelefoneTextBox"/>
+
+        <Label Content="Email:" Margin="0,10,0,0"/>
+        <TextBox x:Name="EmailTextBox"/>
+
+        <Label Content="Observação:" Margin="0,10,0,0"/>
+        <TextBox x:Name="ObservacaoTextBox"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Salvar" Click="Salvar_Click" IsDefault="True" Padding="10,5"/>
+            <Button Content="Cancelar" Click="Cancelar_Click" IsCancel="True" Margin="10,0,0,0" Padding="10,5"/>
+        </StackPanel>
+    </StackPanel>
+</Window>
