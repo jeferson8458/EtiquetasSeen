@@ -1,6 +1,6 @@
 ﻿namespace ImpressoraEtiquetas
 {
-    public class Pessoa
+    public class Socio
     {
         public int Id { get; set; }
         public string NomeCompleto { get; set; }

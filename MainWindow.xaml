@@ -33,12 +33,14 @@
             </TabItem>
             <TabItem Header="Contribuintes">
                 <Grid>
-                    <DataGrid x:Name="ContribuintesGrid" Margin="5" AutoGenerateColumns="False">
+                    <DataGrid x:Name="ContribuintesGrid" AutoGenerateColumns="False">
                         <DataGrid.Columns>
-                            <DataGridTextColumn Header="Nome Completo" Binding="{Binding NomeCompleto}" Width="*"/>
-                            <DataGridTextColumn Header="CPF" Binding="{Binding Cpf}" Width="120"/>
-                            <DataGridTextColumn Header="Matrícula" Binding="{Binding Matricula}" Width="100"/>
-                            <DataGridTextColumn Header="Cidade" Binding="{Binding Cidade}" Width="150"/>
+                            <DataGridTextColumn Header="ID Original" Binding="{Binding ID_Original}" />
+                            <DataGridTextColumn Header="Inscrição" Binding="{Binding Inscricao}" />
+                            <DataGridTextColumn Header="Nome" Binding="{Binding Nome}" />
+                            <DataGridTextColumn Header="Dependente" Binding="{Binding Dependente}" />
+                            <DataGridTextColumn Header="Trabalho" Binding="{Binding Trabalho}" />
+                            <DataGridTextColumn Header="Endereço" Binding="{Binding Endereco}" Width="*"/>
                         </DataGrid.Columns>
                     </DataGrid>
                 </Grid>

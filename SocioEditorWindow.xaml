@@ -1,7 +1,7 @@
-﻿<Window x:Class="ImpressoraEtiquetas.PessoaEditorWindow"
+﻿<Window x:Class="ImpressoraEtiquetas.SocioEditorWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Editor de Pessoa" Height="580" Width="350"
+        Title="Editor de Sócio" Height="678" Width="350"
         WindowStartupLocation="CenterOwner" SizeToContent="Height">
     <StackPanel Margin="15">
         <Label Content="Nome Completo:"/>
@@ -21,6 +21,7 @@
 
         <Label Content="Nº de Dependentes:" Margin="0,10,0,0"/>
         <TextBox x:Name="NumeroDependentesTextBox"/>
+
         <Label Content="CPF:" Margin="0,10,0,0"/>
         <TextBox x:Name="CpfTextBox"/>
 
