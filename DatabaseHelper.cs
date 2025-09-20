@@ -20,72 +20,67 @@ namespace ImpressoraEtiquetas
         private static string databasePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "associados_v2.db");
         private static string connectionString = $"Data Source={databasePath}";
 
+        // Este método é chamado apenas se o banco de dados não existir.
+        // A criação principal é feita pelo seu programa Importador.
         public static void InitializeDatabase()
         {
             if (File.Exists(databasePath)) return;
 
+            // Se o arquivo não existe, cria um banco vazio para o programa não dar erro.
+            // O ideal é sempre usar o banco gerado pelo Importador.
             using (var connection = new SqliteConnection(connectionString))
             {
                 connection.Open();
+                // Apenas para garantir que o arquivo seja criado se estiver faltando.
+            }
+        }
 
-                // ################### INÍCIO DA CORREÇÃO ###################
-                // Adicionando os novos campos na criação da tabela Socios
-                string createSociosTable = @"
-                    CREATE TABLE Socios (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        NomeCompleto TEXT NOT NULL,
-                        Cpf TEXT,
-                        Matricula TEXT,
-                        Cidade TEXT,
-                        Telefone TEXT,
-                        Email TEXT,
-                        Observacao TEXT,
-                        Funcao TEXT,
-                        Empresa TEXT,
-                        Ctps TEXT,
-                        NumeroDependentes TEXT
-                    );";
-                new SqliteCommand(createSociosTable, connection).ExecuteNonQuery();
-                // ################### FIM DA CORREÇÃO ###################
+        public static string GetNextSocioMatricula()
+        {
+            using (var connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                // A lógica é a mesma do GetNextContribuinteId, mas para a tabela Socios e a coluna Matricula.
+                // CAST(Matricula AS INTEGER) é crucial para garantir que os números sejam comparados corretamente (ex: 10 > 9).
+                var query = "SELECT IFNULL(MAX(CAST(Matricula AS INTEGER)), 0) FROM Socios;";
+                using (var command = new SqliteCommand(query, connection))
+                {
+                    long maxMatricula = (long)command.ExecuteScalar();
+                    // Retorna o próximo número da matrícula como string
+                    return (maxMatricula + 1).ToString("D6");
+                }
+            }
+        }
 
-                // ################### INÍCIO DA CORREÇÃO DA TABELA CONTRIBUINTES ###################
-                // Corrigindo a criação da tabela Contribuintes para corresponder ao JSON/CSV.
-                string createContribuintesTable = @"
-                    CREATE TABLE Contribuintes (
-                        ID_Original TEXT PRIMARY KEY,
-                        Inscricao TEXT,
-                        Nome TEXT,
-                        Dependente TEXT,
-                        Trabalho TEXT,
-                        Endereco TEXT
-                    );";
-                new SqliteCommand(createContribuintesTable, connection).ExecuteNonQuery();
-                // ################### FIM DA CORREÇÃO DA TABELA CONTRIBUINTES ###################
-
-                string createConfigTable = "CREATE TABLE Configuracoes (Nome TEXT PRIMARY KEY, Calor INTEGER, Velocidade INTEGER, OffsetLinha INTEGER, OffsetColuna INTEGER);";
-                new SqliteCommand(createConfigTable, connection).ExecuteNonQuery();
-
-                string insertSociosConfig = "INSERT INTO Configuracoes (Nome, Calor, Velocidade, OffsetLinha, OffsetColuna) VALUES ('Socios', 12, 4, 20, 30);";
-                new SqliteCommand(insertSociosConfig, connection).ExecuteNonQuery();
-
-                string insertContribConfig = "INSERT INTO Configuracoes (Nome, Calor, Velocidade, OffsetLinha, OffsetColuna) VALUES ('Contribuintes', 12, 4, 20, 30);";
-                new SqliteCommand(insertContribConfig, connection).ExecuteNonQuery();
+        public static string GetNextContribuinteInscricao()
+        {
+            using (var connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                // A query busca o maior valor numérico na coluna Inscricao
+                var query = "SELECT IFNULL(MAX(CAST(Inscricao AS INTEGER)), 0) FROM Contribuintes;";
+                using (var command = new SqliteCommand(query, connection))
+                {
+                    long maxInscricao = (long)command.ExecuteScalar();
+                    // Retorna o próximo número formatado com 4 dígitos (ex: "0001", "0159")
+                    return (maxInscricao + 1).ToString("D4");
+                }
             }
         }
 
         // --- MÉTODOS PARA SÓCIOS ---
         public static List<Socio> GetAllSocios()
         {
-            var pessoas = new List<Socio>();
+            var socios = new List<Socio>();
             using (var connection = new SqliteConnection(connectionString))
             {
                 connection.Open();
-                using (var command = new SqliteCommand("SELECT * FROM Socios;", connection))
+                using (var command = new SqliteCommand("SELECT * FROM Socios ORDER BY Id DESC;", connection))
                 using (var reader = command.ExecuteReader())
                 {
                     while (reader.Read())
                     {
-                        pessoas.Add(new Socio
+                        socios.Add(new Socio
                         {
                             Id = Convert.ToInt32(reader["Id"]),
                             NomeCompleto = reader["NomeCompleto"].ToString(),
@@ -95,171 +90,79 @@ namespace ImpressoraEtiquetas
                             Telefone = reader["Telefone"].ToString(),
                             Email = reader["Email"].ToString(),
                             Observacao = reader["Observacao"].ToString(),
-                            // ################### INÍCIO DA CORREÇÃO ###################
                             Funcao = reader["Funcao"].ToString(),
                             Empresa = reader["Empresa"].ToString(),
                             Ctps = reader["Ctps"].ToString(),
                             NumeroDependentes = reader["NumeroDependentes"].ToString()
-                            // ################### FIM DA CORREÇÃO ###################
                         });
                     }
                 }
             }
-            return pessoas;
+            return socios;
         }
 
-        public static void AddSocio(Socio pessoa)
+        public static void AddSocio(Socio socio)
         {
             using (var connection = new SqliteConnection(connectionString))
             {
                 connection.Open();
-                // ################### INÍCIO DA CORREÇÃO ###################
                 string query = @"
                     INSERT INTO Socios (NomeCompleto, Cpf, Matricula, Cidade, Telefone, Email, Observacao, Funcao, Empresa, Ctps, NumeroDependentes)
                     VALUES (@Nome, @Cpf, @Matricula, @Cidade, @Telefone, @Email, @Obs, @Funcao, @Empresa, @Ctps, @Dep);";
-                // ################### FIM DA CORREÇÃO ###################
                 using (var command = new SqliteCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@Nome", pessoa.NomeCompleto);
-                    command.Parameters.AddWithValue("@Cpf", pessoa.Cpf);
-                    command.Parameters.AddWithValue("@Matricula", pessoa.Matricula);
-                    command.Parameters.AddWithValue("@Cidade", pessoa.Cidade);
-                    command.Parameters.AddWithValue("@Telefone", pessoa.Telefone);
-                    command.Parameters.AddWithValue("@Email", pessoa.Email);
-                    command.Parameters.AddWithValue("@Obs", pessoa.Observacao);
-                    // ################### INÍCIO DA CORREÇÃO ###################
-                    command.Parameters.AddWithValue("@Funcao", pessoa.Funcao);
-                    command.Parameters.AddWithValue("@Empresa", pessoa.Empresa);
-                    command.Parameters.AddWithValue("@Ctps", pessoa.Ctps);
-                    command.Parameters.AddWithValue("@Dep", pessoa.NumeroDependentes);
-                    // ################### FIM DA CORREÇÃO ###################
+                    command.Parameters.AddWithValue("@Nome", socio.NomeCompleto ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Cpf", socio.Cpf ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Matricula", socio.Matricula ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Cidade", socio.Cidade ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Telefone", socio.Telefone ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Email", socio.Email ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Obs", socio.Observacao ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Funcao", socio.Funcao ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Empresa", socio.Empresa ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Ctps", socio.Ctps ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Dep", socio.NumeroDependentes ?? (object)DBNull.Value);
                     command.ExecuteNonQuery();
                 }
             }
         }
 
-        public static void UpdateSocio(Socio pessoa)
+        public static void UpdateSocio(Socio socio)
         {
             using (var connection = new SqliteConnection(connectionString))
             {
                 connection.Open();
-                // ################### INÍCIO DA CORREÇÃO ###################
                 var query = @"
                     UPDATE Socios SET
                         NomeCompleto = @Nome, Cpf = @Cpf, Matricula = @Matricula, Cidade = @Cidade,
-                        Telefone = @Telefone, Email = @Email, Observacao = @Obs, Funcao = @Funcao, Empresa = @Empresa, Ctps = @Ctps, NumeroDependentes = @Dep
+                        Telefone = @Telefone, Email = @Email, Observacao = @Obs, Funcao = @Funcao, 
+                        Empresa = @Empresa, Ctps = @Ctps, NumeroDependentes = @Dep
                     WHERE Id = @Id;";
-                // ################### FIM DA CORREÇÃO ###################
                 using (var command = new SqliteCommand(query, connection))
                 {
-                    command.Parameters.AddWithValue("@Id", pessoa.Id);
-                    command.Parameters.AddWithValue("@Nome", pessoa.NomeCompleto);
-                    command.Parameters.AddWithValue("@Cpf", pessoa.Cpf);
-                    command.Parameters.AddWithValue("@Matricula", pessoa.Matricula);
-                    command.Parameters.AddWithValue("@Cidade", pessoa.Cidade);
-                    command.Parameters.AddWithValue("@Telefone", pessoa.Telefone);
-                    command.Parameters.AddWithValue("@Email", pessoa.Email);
-                    command.Parameters.AddWithValue("@Obs", pessoa.Observacao);
-                    // ################### INÍCIO DA CORREÇÃO ###################
-                    command.Parameters.AddWithValue("@Funcao", pessoa.Funcao);
-                    command.Parameters.AddWithValue("@Empresa", pessoa.Empresa);
-                    command.Parameters.AddWithValue("@Ctps", pessoa.Ctps);
-                    command.Parameters.AddWithValue("@Dep", pessoa.NumeroDependentes);
-                    // ################### FIM DA CORREÇÃO ###################
+                    command.Parameters.AddWithValue("@Id", socio.Id);
+                    command.Parameters.AddWithValue("@Nome", socio.NomeCompleto ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Cpf", socio.Cpf ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Matricula", socio.Matricula ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Cidade", socio.Cidade ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Telefone", socio.Telefone ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Email", socio.Email ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Obs", socio.Observacao ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Funcao", socio.Funcao ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Empresa", socio.Empresa ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Ctps", socio.Ctps ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Dep", socio.NumeroDependentes ?? (object)DBNull.Value);
                     command.ExecuteNonQuery();
                 }
             }
         }
 
-        public static void DeleteSocio(int id) => Delete("Socios", id);
-
-        // --- MÉTODOS PARA CONTRIBUINTES ---
-        public static List<Contribuintes> GetAllContribuintes() => GetAll("Contribuintes");
-        public static void AddContribuinte(Contribuintes p) => Add("Contribuintes", p);
-        public static void UpdateContribuinte(Contribuintes p) => Update("Contribuintes", p);
-        public static void DeleteContribuinte(string id) => DeleteContribuinteById(id);
-
-
-        // --- MÉTODOS GENÉRICOS ---
-        private static List<Contribuintes> GetAll(string tableName)
-        {
-            var contribuintes = new List<Contribuintes>();
-            using (var connection = new SqliteConnection(connectionString))
-            {
-                connection.Open();
-                using (var command = new SqliteCommand($"SELECT * FROM {tableName};", connection))
-                using (var reader = command.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        var contribuinte = new Contribuintes
-                        {
-                            // Assegura que o tipo de dado da coluna 'ID_Original' no banco de dados (TEXT)
-                            // seja compatível com a propriedade da classe (string).
-                            ID_Original = reader["ID_Original"].ToString(),
-                            Inscricao = reader["Inscricao"].ToString(),
-                            Nome = reader["Nome"].ToString(),
-                            Dependente = reader["Dependente"].ToString(),
-                            Trabalho = reader["Trabalho"].ToString(),
-                            Endereco = reader["Endereco"].ToString(),
-                        };
-                        contribuintes.Add(contribuinte);
-                    }
-                }
-            }
-            return contribuintes;
-        }
-        private static void Add(string tableName, Contribuintes contribuinte)
+        public static void DeleteSocio(int id)
         {
             using (var connection = new SqliteConnection(connectionString))
             {
                 connection.Open();
-                // ################### INÍCIO DA CORREÇÃO ###################
-                // Corrigindo a query de INSERT para incluir o ID_Original
-                string query = $"INSERT INTO {tableName} (ID_Original, Inscricao, Nome, Dependente, Trabalho, Endereco) VALUES (@ID_Original, @Inscricao, @Nome, @Dependente, @Trabalho, @Endereco);";
-                using (var command = new SqliteCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@ID_Original", contribuinte.ID_Original);
-                    command.Parameters.AddWithValue("@Inscricao", contribuinte.Inscricao);
-                    command.Parameters.AddWithValue("@Nome", contribuinte.Nome);
-                    command.Parameters.AddWithValue("@Dependente", contribuinte.Dependente);
-                    command.Parameters.AddWithValue("@Trabalho", contribuinte.Trabalho);
-                    command.Parameters.AddWithValue("@Endereco", contribuinte.Endereco);
-                    // ################### FIM DA CORREÇÃO ###################
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
-
-        private static void Update(string tableName, Contribuintes contribuinte)
-        {
-            using (var connection = new SqliteConnection(connectionString))
-            {
-                connection.Open();
-                // ################### INÍCIO DA CORREÇÃO ###################
-                // Corrigindo a query de UPDATE para corresponder às colunas do JSON e a cláusula WHERE
-                var query = $@"UPDATE {tableName} SET Inscricao = @Inscricao, Nome = @Nome, Dependente = @Dependente, Trabalho = @Trabalho,
-                                  Endereco = @Endereco WHERE ID_Original = @ID_Original;";
-                using (var command = new SqliteCommand(query, connection))
-                {
-                    command.Parameters.AddWithValue("@ID_Original", contribuinte.ID_Original);
-                    command.Parameters.AddWithValue("@Inscricao", contribuinte.Inscricao);
-                    command.Parameters.AddWithValue("@Nome", contribuinte.Nome);
-                    command.Parameters.AddWithValue("@Dependente", contribuinte.Dependente);
-                    command.Parameters.AddWithValue("@Trabalho", contribuinte.Trabalho);
-                    command.Parameters.AddWithValue("@Endereco", contribuinte.Endereco);
-                    // ################### FIM DA CORREÇÃO ###################
-                    command.ExecuteNonQuery();
-                }
-            }
-        }
-
-        private static void Delete(string tableName, int id)
-        {
-            using (var connection = new SqliteConnection(connectionString))
-            {
-                connection.Open();
-                using (var command = new SqliteCommand($"DELETE FROM {tableName} WHERE Id = @Id;", connection))
+                using (var command = new SqliteCommand("DELETE FROM Socios WHERE Id = @Id;", connection))
                 {
                     command.Parameters.AddWithValue("@Id", id);
                     command.ExecuteNonQuery();
@@ -267,8 +170,89 @@ namespace ImpressoraEtiquetas
             }
         }
 
-        // Método de deleção para a tabela de Contribuintes, que usa ID_Original como chave
-        private static void DeleteContribuinteById(string id)
+        // --- MÉTODOS PARA CONTRIBUINTES ---
+        public static List<Contribuintes> GetAllContribuintes()
+        {
+            var contribuintes = new List<Contribuintes>();
+            using (var connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                using (var command = new SqliteCommand("SELECT * FROM Contribuintes ORDER BY DbId DESC;", connection))
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        contribuintes.Add(new Contribuintes
+                        {
+                            ID_Original = reader["ID_Original"].ToString(),
+                            Inscricao = reader["Inscricao"].ToString(),
+                            Nome = reader["Nome"].ToString(),
+                            Dependente = reader["Dependente"].ToString(),
+                            Trabalho = reader["Trabalho"].ToString(),
+                            Endereco = reader["Endereco"].ToString(),
+                        });
+                    }
+                }
+            }
+            return contribuintes;
+        }
+
+        public static string GetNextContribuinteId()
+        {
+            using (var connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                var query = "SELECT IFNULL(MAX(CAST(ID_Original AS INTEGER)), 0) FROM Contribuintes;";
+                using (var command = new SqliteCommand(query, connection))
+                {
+                    long maxId = (long)command.ExecuteScalar();
+                    return (maxId + 1).ToString();
+                }
+            }
+        }
+
+        public static void AddContribuinte(Contribuintes contribuinte)
+        {
+            using (var connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                string query = "INSERT INTO Contribuintes (ID_Original, Inscricao, Nome, Dependente, Trabalho, Endereco) VALUES (@ID_Original, @Inscricao, @Nome, @Dependente, @Trabalho, @Endereco);";
+                using (var command = new SqliteCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ID_Original", contribuinte.ID_Original ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Inscricao", contribuinte.Inscricao ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Nome", contribuinte.Nome ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Dependente", contribuinte.Dependente ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Trabalho", contribuinte.Trabalho ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Endereco", contribuinte.Endereco ?? (object)DBNull.Value);
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public static void UpdateContribuinte(Contribuintes contribuinte)
+        {
+            using (var connection = new SqliteConnection(connectionString))
+            {
+                connection.Open();
+                var query = @"UPDATE Contribuintes SET 
+                                Inscricao = @Inscricao, Nome = @Nome, Dependente = @Dependente, 
+                                Trabalho = @Trabalho, Endereco = @Endereco 
+                              WHERE ID_Original = @ID_Original;";
+                using (var command = new SqliteCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@ID_Original", contribuinte.ID_Original);
+                    command.Parameters.AddWithValue("@Inscricao", contribuinte.Inscricao ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Nome", contribuinte.Nome ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Dependente", contribuinte.Dependente ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Trabalho", contribuinte.Trabalho ?? (object)DBNull.Value);
+                    command.Parameters.AddWithValue("@Endereco", contribuinte.Endereco ?? (object)DBNull.Value);
+                    command.ExecuteNonQuery();
+                }
+            }
+        }
+
+        public static void DeleteContribuinte(string id)
         {
             using (var connection = new SqliteConnection(connectionString))
             {
@@ -281,7 +265,7 @@ namespace ImpressoraEtiquetas
             }
         }
 
-        // --- MÉTODOS PARA CONFIGURAÇÕES (NÃO PRECISAM DE ALTERAÇÃO) ---
+        // --- MÉTODOS PARA CONFIGURAÇÕES ---
         public static ConfiguracaoImpressao GetConfiguracao(string nome)
         {
             ConfiguracaoImpressao config = null;

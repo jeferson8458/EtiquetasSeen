@@ -10,6 +10,11 @@ namespace ImpressoraEtiquetas
 {
     public partial class MainWindow : Window
     {
+
+        // NOVO: Listas para guardar todos os registros originais do banco
+        private List<Socio> todosOsSocios = new List<Socio>();
+        private List<Contribuintes> todosOsContribuintes = new List<Contribuintes>();
+
         public MainWindow()
         {
             InitializeComponent();
@@ -23,6 +28,15 @@ namespace ImpressoraEtiquetas
             {
                 MessageBox.Show("Erro fatal na inicialização: " + ex.Message, "Erro Crítico", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void ClearSearchButton_Click(object sender, RoutedEventArgs e)
+        {
+            // 1. Limpa o texto da caixa de busca
+            SearchTextBox.Clear();
+
+            // 2. Coloca o cursor de volta na caixa de busca para uma nova pesquisa
+            SearchTextBox.Focus();
         }
 
         private void ConfigurarHardware_Click(object sender, RoutedEventArgs e)
@@ -54,11 +68,60 @@ namespace ImpressoraEtiquetas
 
         private void LoadGrids()
         {
-            SociosGrid.ItemsSource = null;
-            ContribuintesGrid.ItemsSource = null;
-            SociosGrid.ItemsSource = DatabaseHelper.GetAllSocios();
-            ContribuintesGrid.ItemsSource = DatabaseHelper.GetAllContribuintes();
+            // CORREÇÃO PRINCIPAL:
+            // 1. Carrega os dados do banco para as nossas listas "master"
+            todosOsSocios = DatabaseHelper.GetAllSocios();
+            todosOsContribuintes = DatabaseHelper.GetAllContribuintes();
+
+            // 2. Chama o filtro, que vai popular as grades com a lista completa inicialmente
+            ApplyFilter();
         }
+
+        private void SearchTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            ApplyFilter();
+        }
+
+        private void ApplyFilter()
+        {
+            // Garante que a caixa de busca exista antes de tentar usá-la
+            if (SearchTextBox == null) return;
+
+            string searchText = SearchTextBox.Text.ToLower();
+
+            // Filtra a lista de Sócios
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                SociosGrid.ItemsSource = todosOsSocios;
+            }
+            else
+            {
+                SociosGrid.ItemsSource = todosOsSocios.Where(s =>
+                    (s.NomeCompleto?.ToLower().Contains(searchText) ?? false) ||
+                    (s.Cpf?.ToLower().Contains(searchText) ?? false) ||
+                    (s.Matricula?.ToLower().Contains(searchText) ?? false)
+                ).ToList();
+            }
+
+            // Filtra a lista de Contribuintes
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                ContribuintesGrid.ItemsSource = todosOsContribuintes;
+            }
+            else
+            {
+                ContribuintesGrid.ItemsSource = todosOsContribuintes.Where(c =>
+                    (c.Nome?.ToLower().Contains(searchText) ?? false) ||
+                    (c.Inscricao?.ToLower().Contains(searchText) ?? false) ||
+                    (c.Trabalho?.ToLower().Contains(searchText) ?? false)
+                ).ToList();
+            }
+
+            // Atualiza a exibição das grades
+            SociosGrid.Items.Refresh();
+            ContribuintesGrid.Items.Refresh();
+        }
+
 
         private string GetSelectedTabName() => (MainTabControl.SelectedItem as TabItem)?.Header.ToString();
         private DataGrid GetSelectedGrid() => GetSelectedTabName() == "Sócios" ? SociosGrid : ContribuintesGrid;
@@ -68,28 +131,44 @@ namespace ImpressoraEtiquetas
             string tipo = GetSelectedTabName();
             if (string.IsNullOrEmpty(tipo)) return;
 
-            // ################### INÍCIO DA CORREÇÃO ###################
             if (tipo == "Sócios")
             {
-                var editorWindow = new SocioEditorWindow();
+                // 1. Cria um novo objeto Sócio
+                var novoSocio = new Socio();
+
+                // 2. Busca a próxima matrícula disponível no banco de dados e a atribui ao novo sócio
+                novoSocio.Matricula = DatabaseHelper.GetNextSocioMatricula();
+
+                // 3. Passa o objeto Sócio (já com a matrícula preenchida) para a janela de edição
+                var editorWindow = new SocioEditorWindow(novoSocio);
                 editorWindow.Title = "Adicionar Novo Sócio";
+
                 if (editorWindow.ShowDialog() == true)
                 {
+                    // O editorWindow já contém o objeto atualizado, basta salvar
                     DatabaseHelper.AddSocio(editorWindow.Socio);
-                    LoadGrids();
+                    LoadGrids(); // Recarrega os dados e atualiza a tela
                 }
             }
             else // "Contribuintes"
             {
-                var editorWindow = new ContribuintesEditorWindows();
+                // 1. Cria o novo objeto
+                var novoContribuinte = new Contribuintes();
+
+                // 2. Busca e atribui o próximo ID Original E a próxima Inscrição
+                novoContribuinte.ID_Original = DatabaseHelper.GetNextContribuinteId();
+                novoContribuinte.Inscricao = DatabaseHelper.GetNextContribuinteInscricao();
+
+                // 3. Passa o objeto já preenchido para a janela de edição
+                var editorWindow = new ContribuintesEditorWindows(novoContribuinte);
                 editorWindow.Title = "Adicionar Novo Contribuinte";
+
                 if (editorWindow.ShowDialog() == true)
                 {
                     DatabaseHelper.AddContribuinte(editorWindow.Contribuintes);
-                    LoadGrids();
+                    LoadGrids(); // Recarrega os dados e atualiza a tela
                 }
             }
-            // ################### FIM DA CORREÇÃO ###################
         }
 
         private void Editar_Click(object sender, RoutedEventArgs e)
@@ -97,10 +176,9 @@ namespace ImpressoraEtiquetas
             string tipo = GetSelectedTabName();
             var grid = GetSelectedGrid();
 
-            // ################### INÍCIO DA CORREÇÃO ###################
-            if (tipo == "Sócios" && grid.SelectedItem is Socio selectedPessoa)
+            if (tipo == "Sócios" && grid.SelectedItem is Socio selectedSocio)
             {
-                var editorWindow = new SocioEditorWindow(selectedPessoa);
+                var editorWindow = new SocioEditorWindow(selectedSocio);
                 editorWindow.Title = "Editar Sócio";
                 if (editorWindow.ShowDialog() == true)
                 {
@@ -122,36 +200,27 @@ namespace ImpressoraEtiquetas
             {
                 MessageBox.Show($"Selecione um item da lista de {tipo} para editar.");
             }
-            // ################### FIM DA CORREÇÃO ###################
         }
+
 
         private void Excluir_Click(object sender, RoutedEventArgs e)
         {
             string tipo = GetSelectedTabName();
             var grid = GetSelectedGrid();
 
-            // Verifique o tipo do item selecionado antes de tentar excluí-lo
-            if (tipo == "Sócios" && grid.SelectedItem is Socio selectedPessoa)
+            if (tipo == "Sócios" && grid.SelectedItem is Socio selectedSocio)
             {
-                if (MessageBox.Show($"Tem certeza que deseja excluir {selectedPessoa.NomeCompleto}?", "Confirmar Exclusão", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                if (MessageBox.Show($"Tem certeza que deseja excluir {selectedSocio.NomeCompleto}?", "Confirmar Exclusão", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
                 {
-                    DatabaseHelper.DeleteSocio(selectedPessoa.Id);
+                    DatabaseHelper.DeleteSocio(selectedSocio.Id);
                     LoadGrids();
                 }
             }
-            // Adicione a condição para Contribuintes
             else if (tipo == "Contribuintes" && grid.SelectedItem is Contribuintes selectedContribuinte)
             {
                 if (MessageBox.Show($"Tem certeza que deseja excluir {selectedContribuinte.Nome}?", "Confirmar Exclusão", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
                 {
-                    // Linha 146: A correção está aqui.
-                    // Agora usa ID_Original (string) em vez de Id (int)
-                    // Fix for CS1503: Argumento 1: não é possível converter de "int" para "string"
-
-                    // The issue is that the method `DatabaseHelper.DeleteContribuinte` expects a `string` as its parameter, 
-                    // but `selectedContribuinte.ID_Original` is of type `int`. To fix this, we need to convert the `int` to a `string`.
-
-                    DatabaseHelper.DeleteContribuinte(selectedContribuinte.ID_Original.ToString());
+                    DatabaseHelper.DeleteContribuinte(selectedContribuinte.ID_Original);
                     LoadGrids();
                 }
             }
